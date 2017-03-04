@@ -93,7 +93,7 @@ class WebFactionBase(object):
             print result
         except xmlrpclib.Fault:
             self.logger.exception(
-                "Error running system command {command}".format(
+                message="Error running system command {command}".format(
                     commad=cmd
                 )
             )
@@ -181,5 +181,7 @@ class WebFactionBase(object):
         try:
             return self.server.list_db_users(self.session_id)
         except xmlrpclib.Fault:
-            self.log.exception("Error listing database users")
+            self.logger.exception(
+                message="could not list database users"
+            )
             return []

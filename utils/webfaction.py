@@ -5,7 +5,6 @@ https://docs.webfaction.com/xmlrpc-api/apiref.html
 
 import xmlrpclib
 import os
-import logging
 
 from structlog import get_logger
 from configobj import ConfigObj
@@ -17,7 +16,7 @@ USER_CONFIG = os.path.expanduser("~/.wfcreds")
 
 
 class WebFactionBase(object):
-    def __init__(self, username, password, target_server=None):
+    def __init__(self, username, password, target_server):
         self.logger = logger.bind()
         self.session_id = None
 

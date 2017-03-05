@@ -112,108 +112,54 @@ class WebFactionBase(object):
             )
             return False
 
-    def list_disk_usage(self):
-        """Returns disk usage stats for the user's account
+    def account_stats(self, action):
+        """
         http://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_disk_usage
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_bandwidth_usage
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_apps
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_dbs
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_db_users
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_mailboxes
+
+        Args:
+            action (str): determines API to run. Possible options:
+                disk: Returns disk usage stats for the user's account
+                bandwidth: bandwidth stats for the account
+                apps: retrieve all apps on the account
+                dbs: retrieve all DBs on the account
+                db_users: retrieve all DB users on the account
+                mailboxes: retrieve mailboxes on the account
 
         Returns:
             on success, struct containing disk usage output
             False otherwise
         """
-        try:
-            result = self.server.list_disk_usage(self.session_id)
-            self.logger.debug(
-                action="disk_usage",
-                result=result
+        operations = {
+            'disk': self.server.list_disk_usage,
+            'bandwidth': self.server.list_bandwidth_usage,
+            'apps': self.server.list_apps,
+            'dbs': self.server.list_dbs,
+            'db_users': self.server.list_db_users,
+            'mailboxes': self.server.list_mailboxes
+        }
+
+        if action not in operations.keys():
+            raise Exception(
+                "Method {method_name} not implemented".format(
+                    method_name=action
+                )
             )
+
+        try:
+            result = operations[action](self.session_id)
+            self.logger.debug(action=action, result=result)
             return result
         except xmlrpclib.Fault:
             self.logger.exception(
-                message="could not list disk usage stats"
+                action=action,
+                message="operation failed"
             )
             return False
-
-    def list_bandwidth_usage(self):
-        """Returns bandwidth stats for the user's websites
-        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_bandwidth_usage
-
-        Returns:
-            On success, struct containing two members 'daily' and 'monthly'
-            False otherwise
-        """
-        try:
-            result = self.server.list_bandwidth_usage(self.session_id)
-            return result
-        except xmlrpclib.Fault:
-            self.logger.exception(
-                message="could not list disk usage stats"
-            )
-            return False
-
-
-    def list_apps(self):
-        """Retrieve apps in the account
-        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_apps
-
-        Returns:
-            An array of structs containing the account's apps
-            Empty list otherwise
-        """
-        try:
-            return self.server.list_apps(self.session_id)
-        except xmlrpclib.Fault:
-            self.logger.exception(
-                message="Could not list existing apps"
-            )
-            return []
-
-    def list_dbs(self):
-        """Retrieve databases in the account
-        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_dbs
-
-        Returns:
-            An array of structs containing the account's DBs
-            Empty list otherwise
-        """
-        try:
-            return self.server.list_dbs(self.session_id)
-        except xmlrpclib.Fault:
-            self.logger.exception(
-                message="Could not list existing databases"
-            )
-            return []
-
-    def list_db_users(self):
-        """Retrieve all database users
-        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_db_users
-
-        Returns:
-            An array of structs containing the account's DBs
-            Empty list otherwise
-        """
-        try:
-            return self.server.list_db_users(self.session_id)
-        except xmlrpclib.Fault:
-            self.logger.exception(
-                message="could not list database users"
-            )
-            return []
-
-    def list_mailboxes(self):
-        """Retrieve mailboxes in the account
-        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_mailboxes
-
-        Returns:
-            An array of structs containing the account's mailboxes
-            Empty list otherwise
-        """
-        try:
-            return self.server.list_mailboxes(self.session_id)
-        except xmlrpclib.Fault:
-            self.logger.exception(
-                message="Could not list existing mailboxes"
-            )
-            return []
 
     def create_mailbox(
         self, mailbox, enable_spam_protection=True, discard_spam=False,

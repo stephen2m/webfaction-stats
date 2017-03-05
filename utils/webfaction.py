@@ -27,7 +27,7 @@ class WebFactionDBUser(object):
 
 
 class WebFactionBase(object):
-    def __init__(self, username, password, target_server):
+    def __init__(self, username="", password="", target_server=""):
         self.logger = logger.bind()
         self.session_id = None
         self.valid_db_types = ["mysql", "postgresql"]
@@ -82,7 +82,7 @@ class WebFactionBase(object):
             Session ID
             Struct containing user-info
         """
-        self.server = xmlrpclib.Server(API_URL)
+        self.server = xmlrpclib.ServerProxy(API_URL)
         self.session_id, account = self.server.login(
             self.username, self.password, self.target_server, self.api_version
         )

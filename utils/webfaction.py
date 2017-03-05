@@ -32,6 +32,7 @@ class WebFactionBase(object):
         self.session_id = None
         self.valid_db_types = ["mysql", "postgresql"]
         self.valid_addons = ["tsearch", "postgis"]
+        self.valid_shells = ['none', 'bash', 'sh', 'ksh', 'csh', 'tcsh']
 
         if not (username and password and target_server):
             try:
@@ -120,6 +121,9 @@ class WebFactionBase(object):
         https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_dbs
         https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_db_users
         https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_mailboxes
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_users
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_ips
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_machines
 
         Args:
             action (str): determines API to run. Possible options:
@@ -129,6 +133,9 @@ class WebFactionBase(object):
                 dbs: retrieve all DBs on the account
                 db_users: retrieve all DB users on the account
                 mailboxes: retrieve mailboxes on the account
+                users: list all shell users for the account
+                ips: list all of the account's machines and their IP address
+                machines: list account's machines
 
         Returns:
             on success, struct containing disk usage output
@@ -140,7 +147,10 @@ class WebFactionBase(object):
             'apps': self.server.list_apps,
             'dbs': self.server.list_dbs,
             'db_users': self.server.list_db_users,
-            'mailboxes': self.server.list_mailboxes
+            'mailboxes': self.server.list_mailboxes,
+            'users': self.server.list_users,
+            'ips': self.server.list_ips,
+            'machines': self.server.list_machines
         }
 
         if action not in operations.keys():
@@ -525,6 +535,69 @@ class WebFactionBase(object):
                 message="operation against the user {name} on\
                 DB {dbname} failed".format(
                     name=username, dbname=database
+                )
+            )
+            return False
+
+    def create_db_user(
+        self, username, shell, groups
+    ):
+        """Create a new shell user
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-create_user
+
+        Args:
+            username (str): intended username
+            shell (string): user's CLI.
+                If shell is 'none', user has FTP access only
+            groups (array): extra groups user should be a member of (optional)
+        """
+        assert isinstance(username, string_types), 'username should be a string'
+        assert isinstance(shell, string_types), 'CLI should be a string'
+        assert isinstance(groups, list), 'groups should be a list'
+
+        if shell not in self.valid_shells:
+            raise ValueError(
+                "shell should be either: {valid_shells}".format(
+                    valid_shells=', '.join(self.valid_shells)
+                )
+            )
+
+        try:
+            result = self.server.create_user(
+                self.session_id, username, shell, groups
+            )
+            self.logger.debug(action="create_user", result=result)
+            return result
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                message="Could not create user {name}, shell {shell}, \
+                groups {groups}".format(
+                    name=username, shell=shell, groups=groups
+                )
+            )
+
+            return False
+
+    def delete_user(self, username):
+        """Deletes a specified user account
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-delete_user
+
+        Args:
+            username (str):  account to delete
+        """
+        assert isinstance(username, string_types), 'username should be a string'
+
+        try:
+            result = self.server.delete_user(
+                self.session_id, username
+            )
+            self.logger.debug(action="delete_user", result=result)
+            return result
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                action="delete_user",
+                message="could not delete user {name}".format(
+                    name=username
                 )
             )
             return False

@@ -322,11 +322,12 @@ class WebFactionBase(object):
                     {improvements}".format(improvements=improvements)
                 )
 
-
         if db_type not in self.valid_db_types:
-            raise Exception("db type should be either: {valid_db_types}".format(
-                valid_db_types=', '.join(self.valid_db_types)
-            ))
+            raise Exception(
+                "db type should be either: {valid_db_types}".format(
+                    valid_db_types=', '.join(self.valid_db_types)
+                )
+            )
 
         try:
             result = self.server.create_db_user(

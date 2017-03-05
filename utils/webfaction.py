@@ -5,7 +5,9 @@ https://docs.webfaction.com/xmlrpc-api/apiref.html
 
 import xmlrpclib
 import os
+import json
 
+from six import string_types
 from structlog import get_logger
 from configobj import ConfigObj
 
@@ -81,6 +83,7 @@ class WebFactionBase(object):
 
     def system(self, cmd):
         """Runs a command as the user and prints the result
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-system
 
         Args:
             cmd (str): command to be excecuted
@@ -185,3 +188,97 @@ class WebFactionBase(object):
                 message="could not list database users"
             )
             return []
+
+    def list_mailboxes(self):
+        """Retrieve mailboxes in the account
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-list_mailboxes
+
+        Returns:
+            An array of structs containing the account's mailboxes
+            Empty list otherwise
+        """
+        try:
+            return self.server.list_mailboxes(self.session_id)
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                message="Could not list existing mailboxes"
+            )
+            return []
+
+    def create_mailbox(
+        self, mailbox, enable_spam_protection=True, discard_spam=False,
+        spam_redirect_folder="", use_manual_procmailrc=False,
+        manual_procmailrc=""
+    ):
+        """Create a new mailbox in the account
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-create_mailbox
+
+        Args:
+            mailbox (str): mailbox name
+            enable_spam_protection (boolean): enable spam protection (optional)
+            discard_spam (boolean): discard spam messages (optional)
+            spam_redirect_folder (str): IMAP folder to store spam (optional)
+            use_manual_procmailrc (boolean): manual procmailrc rules (optional)
+            manual_procmailrc (str): procmailrc rules for the inbox (optional)
+
+        Returns:
+            Returns a struct containing the new mailbox details
+            Empty list otherwise
+        """
+        assert isinstance(
+            mailbox, string_types), 'mailbox name should be a string'
+        assert isinstance(
+            spam_redirect_folder, string_types
+        ), 'redirect folder should be a string'
+        assert isinstance(
+            manual_procmailrc, string_types
+        ), 'procmailrc rules should be a string'
+
+        if use_manual_procmailrc and not manual_procmailrc:
+            raise Exception("`manual_procmailrc` cannot be empty")
+
+        try:
+            result = self.server.create_mailbox(
+                self.session_id, mailbox, enable_spam_protection, discard_spam,
+                spam_redirect_folder, use_manual_procmailrc, manual_procmailrc
+            )
+            print(
+                "Password for the new mailbox: {password}".format(
+                    password=result['password']
+                )
+            )
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                message="Could not create mailbox {name}".format(
+                    name=mailbox
+                )
+            )
+
+    def delete_mailbox(self, mailbox):
+        """Deletes a specified mailbox
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-delete_mailbox
+
+        Returns:
+            on success, struct containing disk usage output
+            1 otherwise
+        """
+        assert isinstance(
+            mailbox, string_types), 'mailbox name should be a string'
+        try:
+            result = self.server.delete_mailbox(
+                self.session_id, mailbox
+            )
+            self.logger.debug(
+                action="delete_mailbox",
+                result=result
+            )
+            return result
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                action="delete_mailbox",
+                message="could not delete mailbox {name}".format(
+                    name=mailbox
+                )
+            )
+            return 1
+

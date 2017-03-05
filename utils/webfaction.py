@@ -104,7 +104,7 @@ class WebFactionBase(object):
         """
         try:
             result = self.server.system(self.session_id, cmd)
-            print result
+            print(result)
         except xmlrpclib.Fault:
             self.logger.exception(
                 message="Error running system command {command}".format(

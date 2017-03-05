@@ -74,7 +74,6 @@ class WebFactionBase(object):
 
     def login(self):
         """Logs into WebFaction using supplied credentials
-
         https://docs.webfaction.com/xmlrpc-api/apiref.html#method-login
 
         Returns:
@@ -99,7 +98,7 @@ class WebFactionBase(object):
             cmd (str): command to be excecuted
 
         Returns:
-            None on success, 1 otherwise
+            None on success, False otherwise
         """
         try:
             result = self.server.system(self.session_id, cmd)
@@ -110,7 +109,7 @@ class WebFactionBase(object):
                     commad=cmd
                 )
             )
-            return 1
+            return False
 
     def list_disk_usage(self):
         """Returns disk usage stats for the user's account
@@ -118,7 +117,7 @@ class WebFactionBase(object):
 
         Returns:
             on success, struct containing disk usage output
-            1 otherwise
+            False otherwise
         """
         try:
             result = self.server.list_disk_usage(self.session_id)
@@ -131,7 +130,7 @@ class WebFactionBase(object):
             self.logger.exception(
                 message="could not list disk usage stats"
             )
-            return 1
+            return False
 
     def list_bandwidth_usage(self):
         """Returns bandwidth stats for the user's websites
@@ -139,7 +138,7 @@ class WebFactionBase(object):
 
         Returns:
             On success, struct containing two members 'daily' and 'monthly'
-            1 otherwise
+            False otherwise
         """
         try:
             result = self.server.list_bandwidth_usage(self.session_id)
@@ -148,7 +147,7 @@ class WebFactionBase(object):
             self.logger.exception(
                 message="could not list disk usage stats"
             )
-            return 1
+            return False
 
 
     def list_apps(self):
@@ -295,7 +294,7 @@ class WebFactionBase(object):
     def create_db_user(
         self, username, password, db_type, enforce_password_strength=True
     ):
-        """Create a new mailbox in the account
+        """Create a new DB user in the account
         https://docs.webfaction.com/xmlrpc-api/apiref.html#method-create_db_user
 
         Args:
@@ -343,8 +342,142 @@ class WebFactionBase(object):
             return WebFactionDBUser(username, password, db_type)
         except xmlrpclib.Fault:
             self.logger.exception(
-                message="Could not create DB user {name} for {type} DB".format(
+                message="Could not create DB user {name} ({type} DB)".format(
                     name=username, type=db_type
+                )
+            )
+            return False
+
+    def change_db_user_password(
+        self, username, password, db_type, enforce_password_strength=True
+    ):
+        """Change a DB user's password
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-change_db_user_password
+
+        Args:
+            username (str): database user's name
+            password (str): database user's password
+            db_type (str): either `mysql` or `postgresql`
+            enforce_password_strength (boolean): use passwordmeter to
+                ensure strong passwords are used
+
+        Returns:
+            Returns an object of type WebFactionDBUser, otherwise False
+        """
+        assert isinstance(
+            username, string_types), 'username should be a string'
+        assert isinstance(
+            password, string_types), 'password should be a string'
+        assert isinstance(
+            db_type, string_types), 'db_type should be a string'
+
+        if enforce_password_strength:
+            strength, improvements = passwordmeter.test(password)
+            suggestions = [value for value in improvements.values()]
+
+            if strength < 0.5:
+                raise ValueError(
+                    "Your password is weak. Suggested improvements: \
+                    \n\t{improvements}".format(
+                        improvements='\n\t'.join(suggestions)
+                    )
+                )
+
+        if db_type not in self.valid_db_types:
+            raise ValueError(
+                "db type should be either: {valid_db_types}".format(
+                    valid_db_types=', '.join(self.valid_db_types)
+                )
+            )
+
+        try:
+            result = self.server.change_db_user_password(
+                self.session_id, username, password, db_type
+            )
+            self.logger.debug(action="change_db_user_password", result=result)
+
+            return WebFactionDBUser(username, password, db_type)
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                message="Could not change password for DB user {name} ({type} \
+                    DB)".format(name=username, type=db_type)
+            )
+            return False
+
+    def delete_db_user(self, username, db_type):
+        """Deletes a specified DB user
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-delete_db_user
+
+        Args:
+            username (str): database user's name
+            db_type (str): either `mysql` or `postgresql`
+
+        Returns:
+            on success, struct containing the output
+            False otherwise
+        """
+        assert isinstance(
+            username, string_types), 'username should be a string'
+        assert isinstance(
+            db_type, string_types), 'db_type should be a string'
+
+        if db_type not in self.valid_db_types:
+            raise ValueError(
+                "db type should be either: {valid_db_types}".format(
+                    valid_db_types=', '.join(self.valid_db_types)
+                )
+            )
+
+        try:
+            result = self.server.delete_db_user(
+                self.session_id, username, db_type
+            )
+            self.logger.debug(action="delete_dbuser", result=result)
+            return result
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                action="delete_dbuser",
+                message="could not delete DB user {name}".format(
+                    name=username
+                )
+            )
+            return False
+
+    def delete_db(self, dbname, db_type):
+        """Deletes a specified DB
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-delete_db
+
+        Args:
+            dbname (str): database's name
+            db_type (str): either `mysql` or `postgresql`
+
+        Returns:
+            on success, struct containing the output
+            False otherwise
+        """
+        assert isinstance(
+            dbname, string_types), 'dbname should be a string'
+        assert isinstance(
+            db_type, string_types), 'db_type should be a string'
+
+        if db_type not in self.valid_db_types:
+            raise ValueError(
+                "db type should be either: {valid_db_types}".format(
+                    valid_db_types=', '.join(self.valid_db_types)
+                )
+            )
+
+        try:
+            result = self.server.delete_db(
+                self.session_id, dbname, db_type
+            )
+            self.logger.debug(action="delete_db", result=result)
+            return result
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                action="delete_db",
+                message="could not delete DB {name}".format(
+                    name=dbname
                 )
             )
             return False

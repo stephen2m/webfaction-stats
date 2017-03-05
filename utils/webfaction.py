@@ -7,6 +7,7 @@ import xmlrpclib
 import os
 import json
 
+import passwordmeter
 from six import string_types
 from structlog import get_logger
 from configobj import ConfigObj
@@ -17,10 +18,19 @@ API_URL = "https://api.webfaction.com"
 USER_CONFIG = os.path.expanduser("~/.wfcreds")
 
 
+class WebFactionDBUser(object):
+    def __init__(self, username, password, db_type):
+        super(WebFactionDBUser, self).__init__()
+        self.username = username
+        self.password = password
+        self.db_type = db_type
+
+
 class WebFactionBase(object):
     def __init__(self, username, password, target_server):
         self.logger = logger.bind()
         self.session_id = None
+        self.valid_db_types = ["mysql", "postgresql"]
 
         if not (username and password and target_server):
             try:
@@ -280,3 +290,55 @@ class WebFactionBase(object):
             )
             return 1
 
+    def create_db_user(
+        self, username, password, db_type, enforce_password_strength=True
+    ):
+        """Create a new mailbox in the account
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-create_db_user
+
+        Args:
+            username (str): database user's name
+            password (str): database user's password
+            db_type (str): either `mysql` or `postgresql`
+            enforce_password_strength (boolean): use passwordmeter to
+                ensure strong passwords are used
+
+        Returns:
+            Returns an object of type WebFactionDBUser, otherwise False
+        """
+        assert isinstance(
+            username, string_types), 'username should be a string'
+        assert isinstance(
+            password, string_types), 'password should be a string'
+        assert isinstance(
+            db_type, string_types), 'db_type should be a string'
+
+        if enforce_password_strength:
+            strength, improvements = passwordmeter.test(password)
+
+            if strength < 0.5:
+                raise Exception(
+                    "Your password is weak.  Suggested improvements: \
+                    {improvements}".format(improvements=improvements)
+                )
+
+
+        if db_type not in self.valid_db_types:
+            raise Exception("db type should be either: {valid_db_types}".format(
+                valid_db_types=', '.join(self.valid_db_types)
+            ))
+
+        try:
+            result = self.server.create_db_user(
+                self.session_id, username, password, db_type
+            )
+            self.logger.debug(action="create_db_user", result=result)
+
+            return WebFactionDBUser(username, password, db_type)
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                message="Could not create DB user {name} for {type} DB".format(
+                    name=username, type=db_type
+                )
+            )
+            return False

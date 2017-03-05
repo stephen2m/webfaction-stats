@@ -242,6 +242,7 @@ class WebFactionBase(object):
                 self.session_id, mailbox, enable_spam_protection, discard_spam,
                 spam_redirect_folder, use_manual_procmailrc, manual_procmailrc
             )
+            self.logger.debug(action="create_mailbox", result=result)
             print(
                 "Password for the new mailbox: {password}".format(
                     password=result['password']
@@ -268,10 +269,7 @@ class WebFactionBase(object):
             result = self.server.delete_mailbox(
                 self.session_id, mailbox
             )
-            self.logger.debug(
-                action="delete_mailbox",
-                result=result
-            )
+            self.logger.debug(action="delete_mailbox", result=result)
             return result
         except xmlrpclib.Fault:
             self.logger.exception(

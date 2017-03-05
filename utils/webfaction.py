@@ -31,6 +31,7 @@ class WebFactionBase(object):
         self.logger = logger.bind()
         self.session_id = None
         self.valid_db_types = ["mysql", "postgresql"]
+        self.valid_addons = ["tsearch", "postgis"]
 
         if not (username and password and target_server):
             try:
@@ -478,6 +479,106 @@ class WebFactionBase(object):
                 action="delete_db",
                 message="could not delete DB {name}".format(
                     name=dbname
+                )
+            )
+            return False
+
+    def enable_addon(self, dbname, addon):
+        """Enables a DB addon for postgresql DBs
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-enable_addon
+
+        Args:
+            dbname (str): database's name
+
+        Returns:
+            on success, struct containing the output
+            False otherwise
+        """
+        assert isinstance(
+            dbname, string_types), 'dbname should be a string'
+        assert isinstance(
+            addon, string_types), 'addon should be a string'
+
+        if addon not in self.valid_addons:
+            raise ValueError(
+                "addon should be either: {valid_addons}".format(
+                    valid_addons=', '.join(self.valid_addons)
+                )
+            )
+
+        try:
+            result = self.server.enable_addon(
+                self.session_id, dbname, 'postgresql', addon
+            )
+            self.logger.debug(action="enable_addon", result=result)
+            return result
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                action="enable_addon",
+                message="could not enable addon {addon} on DB {dbname}".format(
+                    addon=addon, dbname=dbname
+                )
+            )
+            return False
+
+    def manage_db(self, username, database, db_type, action):
+        """Depending on action:
+            - either grant full permission to a user
+            - revoke db permissions from a user
+            - make user the owner of a specified DB
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-grant_db_permissions
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-revoke_db_permissions
+        https://docs.webfaction.com/xmlrpc-api/apiref.html#method-make_user_owner_of_db
+
+        Args:
+            username (str): database user's name
+            database (str): database to grant user full permissions to
+            db_type (str): either `mysql` or `postgresql`
+            action (str): either `make_owner`, `grant_perm`, `revoke_perm`
+
+        Returns:
+            on success, struct containing the output
+            False otherwise
+        """
+        operations = {
+            'make_owner': self.server.make_user_owner_of_db,
+            'grant_perm': self.server.grant_db_permissions,
+            'revoke_perm': self.server.revoke_db_permissions
+        }
+
+        assert isinstance(
+            username, string_types), 'username should be a string'
+        assert isinstance(
+            db_type, string_types), 'db_type should be a string'
+        assert isinstance(
+            database, string_types), 'database should be a string'
+
+        if db_type not in self.valid_db_types:
+            raise ValueError(
+                "db type should be either: {valid_db_types}".format(
+                    valid_db_types=', '.join(self.valid_db_types)
+                )
+            )
+
+        if action not in operations.keys():
+            raise Exception(
+                "DB method {method_name} not implemented".format(
+                    method_name=action
+                )
+            )
+
+        try:
+            result = operations[action](
+                self.session_id, username, database, db_type
+            )
+            self.logger.debug(action=action, result=result)
+            return result
+        except xmlrpclib.Fault:
+            self.logger.exception(
+                action=action,
+                message="operation against the user {name} on\
+                DB {dbname} failed".format(
+                    name=username, dbname=database
                 )
             )
             return False

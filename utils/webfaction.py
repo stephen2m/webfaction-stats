@@ -315,11 +315,14 @@ class WebFactionBase(object):
 
         if enforce_password_strength:
             strength, improvements = passwordmeter.test(password)
+            suggestions = [value for value in improvements.values()]
 
             if strength < 0.5:
                 raise Exception(
                     "Your password is weak.  Suggested improvements: \
-                    {improvements}".format(improvements=improvements)
+                    \n\t{improvements}".format(
+                        improvements='\n\t'.join(suggestions)
+                    )
                 )
 
         if db_type not in self.valid_db_types:

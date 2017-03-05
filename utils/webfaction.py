@@ -245,7 +245,7 @@ class WebFactionBase(object):
         ), 'procmailrc rules should be a string'
 
         if use_manual_procmailrc and not manual_procmailrc:
-            raise Exception("`manual_procmailrc` cannot be empty")
+            raise ValueError("`manual_procmailrc` cannot be empty")
 
         try:
             result = self.server.create_mailbox(
@@ -265,13 +265,15 @@ class WebFactionBase(object):
                 )
             )
 
+            return False
+
     def delete_mailbox(self, mailbox):
         """Deletes a specified mailbox
         https://docs.webfaction.com/xmlrpc-api/apiref.html#method-delete_mailbox
 
         Returns:
             on success, struct containing disk usage output
-            1 otherwise
+            False otherwise
         """
         assert isinstance(
             mailbox, string_types), 'mailbox name should be a string'
@@ -288,7 +290,7 @@ class WebFactionBase(object):
                     name=mailbox
                 )
             )
-            return 1
+            return False
 
     def create_db_user(
         self, username, password, db_type, enforce_password_strength=True
@@ -318,15 +320,15 @@ class WebFactionBase(object):
             suggestions = [value for value in improvements.values()]
 
             if strength < 0.5:
-                raise Exception(
-                    "Your password is weak.  Suggested improvements: \
+                raise ValueError(
+                    "Your password is weak. Suggested improvements: \
                     \n\t{improvements}".format(
                         improvements='\n\t'.join(suggestions)
                     )
                 )
 
         if db_type not in self.valid_db_types:
-            raise Exception(
+            raise ValueError(
                 "db type should be either: {valid_db_types}".format(
                     valid_db_types=', '.join(self.valid_db_types)
                 )

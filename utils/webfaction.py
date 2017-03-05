@@ -3,7 +3,10 @@ WebFaction XML-RPC API Library
 https://docs.webfaction.com/xmlrpc-api/apiref.html
 """
 
-import xmlrpclib
+try:
+    import xmlrpc.client as xmlrpclib
+except ImportError:
+    import xmlrpclib
 import os
 import json
 
@@ -14,7 +17,7 @@ from configobj import ConfigObj
 
 logger = get_logger()
 
-API_URL = "https://api.webfaction.com"
+API_URL = "https://api.webfaction.com/"
 USER_CONFIG = os.path.expanduser("~/.wfcreds")
 
 

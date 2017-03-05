@@ -4,7 +4,7 @@ import json
 
 
 def _add_timestamp(_, __, event_dict):
-    event_dict['timestamp'] = datetime.datetime.utcnow()
+    event_dict['timestamp'] = str(datetime.datetime.utcnow())
     return event_dict
 
 
@@ -51,8 +51,7 @@ class KeyValueRenderer(object):
 structlog.configure(
     processors=[
         structlog.processors.UnicodeEncoder(),
-        KeyValueRenderer(),
-        _add_timestamp
+        KeyValueRenderer()
     ],
     logger_factory=structlog.stdlib.LoggerFactory(),
 )
